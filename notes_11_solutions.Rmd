@@ -1,0 +1,192 @@
+---
+title: "Introduction to probability"
+author: ""
+date: ""
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
+                      comment = "#>", highlight = TRUE,
+                      fig.align = "center")
+```
+
+## Main ideas
+
+- Use formulas to compute probabilities from tabular data
+
+- Compute empirical probabilities in R via simulation
+
+## Packages
+
+```{r packages}
+library(tidyverse)
+library(vcd) # used for Arthritis data
+```
+
+## Computing probabilities
+
+```{r data}
+data(Arthritis)
+glimpse(Arthritis)
+```
+
+Take a look at the help for `Arthritis` to understand where this data comes
+from and the variable meanings.
+
+Let's look at the data in a tabular view. Don't worry about understanding these
+functions, we're only using it to better visualize our data via a table.
+
+```{r tabular_data}
+xtabs(~ Treatment + Improved, data = Arthritis) %>% 
+  addmargins()
+```
+
+Let $L$ be the placebo and $T$ be the treatment.
+
+- How many patients were enrolled in the clinical trial?
+
+  84 total patients
+
+- What is the probability a randomly selected patient received the placebo?
+
+  $P(L) = 43/84$
+
+- What is the probability a randomly selected patient received the placebo
+  and had a marked improvement?
+  
+  $P(L \cap T) = 7 / 84$
+  
+- What is the probability a randomly selected patient received the placebo
+  and the treatment?
+  
+  $P(L \cap T) = 0$
+  
+- What is the probability a randomly selected patient had some improvement or
+  was on the treatment?
+  
+  $P(S \cup T) = P(S) + P(T) - P(S \cap T) = 14/84 + 41/84 - 7/84$
+
+## Using computer simulations to calculate probabilities
+
+#### Example
+
+Recall that a **vector** is the basic building block in R. Let's create
+a vector called `marbles`.
+
+```{r marbles}
+marbles <- c("red", "red", "white", "red", "blue", "blue", "red", "blue")
+```
+
+Suppose we draw a single marble from our imaginary box, where all the marbles
+are equally likely to be selected. What is the probability the marble is blue? 
+How about white?
+
+We can simulate this "drawing" with the `sample()` function.
+
+```{r sample}
+sample(marbles, size = 1)
+```
+
+We produced one random outcome from this experiment. To estimate the probability 
+of say getting a white marble, we need to repeat this experiment many many
+times.
+
+In the `sample()` function we can change the `size` argument and set
+`replace = TRUE`. Setting `replace = TRUE` allows to draw from our population
+of eight marbles each time. This way we can easily simulate our marble-drawing 
+experiment.
+
+```{r simulate_draws}
+draw_results <- sample(marbles, size = 10000, replace = TRUE)
+```
+
+```{r summarize_draws}
+counts <- table(draw_results)
+prop.table(counts)
+```
+
+How close is this value to the "true" probability?
+
+**To summarize our process:**
+
+1. We defined the sample space for our experiment - `marbles`
+2. We simulated this experiment many many times and recorded the outcomes from
+   each of the simulations.
+3. We computed the relative frequency of the observed outcomes from our many
+   simulations.
+   
+#### Another example
+
+What if we want to compute the probability of getting two marbles of the same
+color if we make two draws with replacement? We haven't discussed how to
+compute this theoretically yet, but this is what computers are good at.
+
+Before we do this, what is your guess as to what the probability will be?
+
+We'll still use `sample()` to run our simulation many times, but we'll
+use `dplyr` functions to compute the relative frequencies.
+
+```{r simulate_two_draws}
+two_draw_results <- tibble(
+  draw_1 = sample(marbles, size = 10000, replace = TRUE),
+  draw_2 = sample(marbles, size = 10000, replace = TRUE)
+)
+
+two_draw_results
+```
+
+How can we add a variable to `two_draw_results` to see if `draw_1` and `draw_2`
+match?
+
+```{r identify_matches}
+two_draw_results <- two_draw_results %>% 
+  mutate(color_match = draw_1 == draw_2)
+
+two_draw_results
+```
+
+All that remains is to compute the relative frequency of the observed outcomes 
+from our many simulations.
+
+```{r summarize_matches}
+two_draw_results %>% 
+  count(color_match) %>% 
+  mutate(proportion = n / sum(n))
+```
+
+## Practice
+
+Suppose you roll two fair six-sided dice. Which has a higher probability:
+the square of dice roll 1 is equal to dice roll 2; or the absolute value of the
+difference between dice roll 1 and dice roll 2 is equal to 4.
+
+Perform a simulation to compute this empirical probability.
+
+Write down your guess to the answer before you calculate it.
+
+```{r simulate_rolls}
+roll_results <- tibble(
+  die_1 = sample(1:6, size = 10000, replace = TRUE),
+  die_2 = sample(1:6, size = 10000, replace = TRUE)
+)
+
+roll_results
+```
+
+```{r identify_events}
+roll_results <- roll_results %>% 
+  mutate(event_1 = die_1 ^ 2 == die_2,
+         event_2 = abs(die_1 - die_2) == 4)
+
+roll_results
+```
+
+```{r summarize_rolls}
+roll_results %>% 
+  summarise(event_1_prob = mean(event_1),
+            event_2_prob = mean(event_2))
+```
+
